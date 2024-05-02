@@ -8,7 +8,7 @@ import torch
 
 from functools import partial
 
-from modeling import ImageEncoderViT, MaskDecoder, PromptEncoder, Sam, TwoWayTransformer, TinyViT
+from .modeling import ImageEncoderViT, MaskDecoder, PromptEncoder, Sam, TwoWayTransformer, TinyViT
 
 
 def build_sam_vit_h(checkpoint=None, custom_img_size=1024):
@@ -18,8 +18,9 @@ def build_sam_vit_h(checkpoint=None, custom_img_size=1024):
         encoder_num_heads=16,
         encoder_global_attn_indexes=[7, 15, 23, 31],
         checkpoint=checkpoint,
-        custom_img_size=custom_img_size, # by LBK EDIT
+        custom_img_size=custom_img_size,  # by LBK EDIT
     )
+
 
 def build_sam_vit_l(checkpoint=None, custom_img_size=1024):
     return _build_sam(
@@ -28,10 +29,12 @@ def build_sam_vit_l(checkpoint=None, custom_img_size=1024):
         encoder_num_heads=16,
         encoder_global_attn_indexes=[5, 11, 17, 23],
         checkpoint=checkpoint,
-        custom_img_size=custom_img_size, # by LBK EDIT
+        custom_img_size=custom_img_size,  # by LBK EDIT
     )
 
 # by LBK EDIT
+
+
 def build_sam_vit_b(checkpoint=None, custom_img_size=1024):
     return _build_sam(
         encoder_embed_dim=768,
@@ -39,17 +42,19 @@ def build_sam_vit_b(checkpoint=None, custom_img_size=1024):
         encoder_num_heads=12,
         encoder_global_attn_indexes=[2, 5, 8, 11],
         checkpoint=checkpoint,
-        custom_img_size=custom_img_size, # by LBK EDIT
+        custom_img_size=custom_img_size,  # by LBK EDIT
     )
 
 # Original SAM
+
+
 def _build_sam(
     encoder_embed_dim,
     encoder_depth,
     encoder_num_heads,
     encoder_global_attn_indexes,
     checkpoint=None,
-    custom_img_size=1024, # by LBK EDIT
+    custom_img_size=1024,  # by LBK EDIT
 ):
     prompt_embed_dim = 256
     image_size = 1024
@@ -75,7 +80,8 @@ def _build_sam(
             # LBK EDIT (Important)
             # image_embedding_size=(image_embedding_size, image_embedding_size),
             # input_image_size=(image_size, image_size),
-            image_embedding_size=(custom_img_size//vit_patch_size, custom_img_size//vit_patch_size),
+            image_embedding_size=(
+                custom_img_size//vit_patch_size, custom_img_size//vit_patch_size),
             input_image_size=(custom_img_size, custom_img_size),
             mask_in_chans=16,
         ),
@@ -102,49 +108,52 @@ def _build_sam(
     return sam
 
 # Mobile-SAM
+
+
 def build_sam_vit_t(checkpoint=None, custom_img_size=1024):
     prompt_embed_dim = 256
     image_size = 1024
     vit_patch_size = 16
     image_embedding_size = image_size // vit_patch_size
     mobile_sam = Sam(
-            image_encoder=TinyViT(img_size=1024, in_chans=3, num_classes=1000,
-                embed_dims=[64, 128, 160, 320],
-                depths=[2, 2, 6, 2],
-                num_heads=[2, 4, 5, 10],
-                window_sizes=[7, 7, 14, 7],
-                mlp_ratio=4.,
-                drop_rate=0.,
-                drop_path_rate=0.0,
-                use_checkpoint=False,
-                mbconv_expand_ratio=4.0,
-                local_conv_size=3,
-                layer_lr_decay=0.8
-            ),
-            prompt_encoder=PromptEncoder(
+        image_encoder=TinyViT(img_size=1024, in_chans=3, num_classes=1000,
+                              embed_dims=[64, 128, 160, 320],
+                              depths=[2, 2, 6, 2],
+                              num_heads=[2, 4, 5, 10],
+                              window_sizes=[7, 7, 14, 7],
+                              mlp_ratio=4.,
+                              drop_rate=0.,
+                              drop_path_rate=0.0,
+                              use_checkpoint=False,
+                              mbconv_expand_ratio=4.0,
+                              local_conv_size=3,
+                              layer_lr_decay=0.8
+                              ),
+        prompt_encoder=PromptEncoder(
             embed_dim=prompt_embed_dim,
             # LBK EDIT (Important)
             # image_embedding_size=(image_embedding_size, image_embedding_size),
             # input_image_size=(image_size, image_size),
-            image_embedding_size=(custom_img_size//vit_patch_size, custom_img_size//vit_patch_size),
+            image_embedding_size=(
+                custom_img_size//vit_patch_size, custom_img_size//vit_patch_size),
             input_image_size=(custom_img_size, custom_img_size),
             mask_in_chans=16,
+        ),
+        mask_decoder=MaskDecoder(
+            num_multimask_outputs=3,
+            transformer=TwoWayTransformer(
+                depth=2,
+                embedding_dim=prompt_embed_dim,
+                mlp_dim=2048,
+                num_heads=8,
             ),
-            mask_decoder=MaskDecoder(
-                    num_multimask_outputs=3,
-                    transformer=TwoWayTransformer(
-                    depth=2,
-                    embedding_dim=prompt_embed_dim,
-                    mlp_dim=2048,
-                    num_heads=8,
-                ),
-                transformer_dim=prompt_embed_dim,
-                iou_head_depth=3,
-                iou_head_hidden_dim=256,
-            ),
-            pixel_mean=[123.675, 116.28, 103.53],
-            pixel_std=[58.395, 57.12, 57.375],
-        )
+            transformer_dim=prompt_embed_dim,
+            iou_head_depth=3,
+            iou_head_hidden_dim=256,
+        ),
+        pixel_mean=[123.675, 116.28, 103.53],
+        pixel_std=[58.395, 57.12, 57.375],
+    )
 
     mobile_sam.eval()
     if checkpoint is not None:
